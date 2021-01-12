@@ -1,0 +1,141 @@
+---
+- hosts: localhost 
+  become: yes
+  tasks:
+  - name: update /etc/prometheus/prometheus.yml
+    copy:
+      src: /home/ordix/ansible/template/uebung5/prometheus.yml
+      dest: /etc/prometheus/
+ 
+  - name: update /etc/systemd/system/prometheus.service
+    copy:
+      src: /home/ordix/ansible/template/uebung5/prometheus.service
+      dest: /etc/systemd/system/prometheus.service
+
+  - name: update /etc/nginx/conf.d/prometheus-ssl.conf
+    copy:
+      src: /home/ordix/ansible/template/uebung5/prometheus-ssl.conf
+      dest: /etc/nginx/conf.d/prometheus-ssl.conf
+
+  - name: Daemon reload + ensure prometheus service is started and enabled
+    systemd:
+      daemon_reload: True
+      name: prometheus
+      state: restarted
+      enabled: True 
+
+  - name: restart and enable nginx 
+    systemd:
+      name: nginx
+      state: restarted
+      enabled: True
+
+
+
+
+#  - name: Change node_exporter.service
+#    copy:
+#      src: /home/ordix/ansible/template/uebung4/node_exporter.service
+#      dest: /etc/systemd/system/node_exporter.service
+#
+#  - name: Extract /root/mysqld_exporter-0.12.1.linux-amd64.tar.gz into 
+#    unarchive:
+#      src: /root/mysqld_exporter-0.12.1.linux-amd64.tar.gz
+#      dest: /root/
+#      owner: prometheus
+#      group: prometheus
+#
+#  - name: Copy mysqld_exporter into /usr/local/bin
+#    copy:
+#      src: /root/mysqld_exporter-0.12.1.linux-amd64/mysqld_exporter
+#      dest: /usr/local/bin/mysqld_exporter
+#      owner: prometheus
+#      group: prometheus
+#      mode: '0555'
+#
+#  - name: Copy .mysqld_exporter.cnf into /etc
+#    copy:  
+#      src: /home/ordix/ansible/template/uebung4/.mysqld_exporter.cnf
+#      dest: /etc/
+#      owner: root
+#      group: prometheus
+#      mode: "0640"
+#
+##  - name: create file /etc/.mysql_exporter.cnf
+##    file:
+##      path: /etc/.mysqld_exporter.cnf
+##      state: touch
+##      group: ordix
+##      owner: ordix
+##
+##  - name: Update /etc/.mysqld_exporter.cnf
+###    become: yes
+###    become_user: root
+##    blockinfile:
+##      path: /etc/.mysqld_exporter.cnf
+##      block: |
+##        [client]
+##        user=ordix
+##        password=ordix
+##      owner: root
+##      group: prometheus
+##      mode: '0640'
+#
+#  - name: Copy mysql_exporter.service into /etc/systemd/system/
+#    copy:
+#      src: /home/ordix/ansible/template/uebung4/mysql_exporter.service
+#      dest: /etc/systemd/system/mysql_exporter.service
+#
+#  - name: create dir /var/spool/node_exporter
+#    file:
+#      path: /var/spool/node_exporter
+#      state: directory
+#
+#
+#  - name: start a cronjob
+#    cron:
+#      name: process_counter
+#      job: "/home/ordix/ansible/template/uebung4/process_counter.sh"
+#
+#  - name: Copy nginx config 
+#    copy:
+#      src: /home/ordix/ansible/template/uebung4/prometheus-ssl.conf
+#      dest: /etc/nginx/conf.d/prometheus-ssl.conf
+#
+#  - name: Copy process-exporter.service into /etc/systemd/system/
+#    copy:
+#      src: /home/ordix/ansible/template/uebung4/process-exporter.service
+#      dest: /etc/systemd/system/process-exporter.service
+#
+#  - name: Daemon reload + ensure prometheus service is started and enabled
+#    systemd:
+#      daemon_reload: True
+#      name: prometheus
+#      state: restarted
+#      enabled: True
+#
+#  - name: Start and enable mysql_exporter
+#    systemd:
+#      name: mysql_exporter 
+#      state: restarted
+#      enabled: True
+#
+#  - name: Start and enable mysql_exporter
+#    systemd:
+#      name: nginx
+#      state: restarted
+#      enabled: True
+#
+#  - name: Start and enable mysql_exporter
+#    systemd:
+#      name: node_exporter
+#      state: restarted
+#      enabled: True
+#
+#  - name: Start and enable mysql_exporter
+#    systemd:
+#      name: process-exporter
+#      state: restarted
+#      enabled: True
+
+...

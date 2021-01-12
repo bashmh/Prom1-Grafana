@@ -1,0 +1,23 @@
+[Unit]
+Description = Prometheus Node Exporter
+After       = network-online.target
+Wants       = network-online.target
+
+[Service]
+User        = prometheus
+Group       = prometheus
+Type        = simple
+ExecStart   = /usr/local/bin/node_exporter \
+	--collector.filesystem.ignored-mount-points='^/(sys|proc|dev|host|etc)($$|/)' \
+        --collector.systemd \
+        --no-collector.zfs \
+	--collector.tcpstat \
+	--no-collector.xfs \
+	--web.telemetry-path='/node-exporter/metrics' \
+	--web.listen-address=127.0.0.1:9100 \
+	--log.level=info \
+	--collector.textfile.directory='/var/spool/node_exporter' 
+
+[Install]
+WantedBy    = multi-user.target
+
