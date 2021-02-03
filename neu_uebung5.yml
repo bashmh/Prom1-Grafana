@@ -71,7 +71,8 @@
       path: /etc/nginx/conf.d/prometheus-ssl.conf
       create: true
       state: present
-      marker: "#uebung 5 ansible"
+      marker_begin: "#uebung 5 ansible begin"
+      marker_end: "#uebung 5 ansible end"
       insertbefore: "^}"
       block: |2
                 location /prometheus {
