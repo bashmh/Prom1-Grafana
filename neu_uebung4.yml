@@ -1,7 +1,6 @@
 ---
 
 - hosts: localhost
-#  become: true
   tasks:
   - name: Change node_exporter.service
     blockinfile:
@@ -9,12 +8,21 @@
       create: true
       state: present
       insertafter: "^ExecStart"
-      block: |2 
+      block: |2
                 --collector.systemd \
                 --no-collector.zfs \
-                --web.telemetry-path='/node-exporter/metrics' \
-                --web.listen-address=127.0.0.1:9100 \
-                --collector.textfile.directory='/var/spool/node_exporter' \
+
+  - name: update node_exporter
+    lineinfile:
+      path: /etc/systemd/system/node_exporter.service
+      regexp: "--web.listen-address="
+      line: '        --web.listen-address=127.0.0.1:9100 \'
+
+  - name: update node_exporter2
+    lineinfile:
+      path: /etc/systemd/system/node_exporter.service
+      regexp: "--web.telemetry-path="
+      line: '        --web.telemetry-path="/node-exporter/metrics" \'
 
   - name: Extract /root/mysqld_exporter-0.12.1.linux-amd64.tar.gz into
     unarchive:
@@ -29,7 +37,7 @@
       dest: /usr/local/bin/mysqld_exporter
       owner: prometheus
       group: prometheus
-      mode: '0555'
+      mode: 0555
 
   - name: creste .mysql_exporter
     blockinfile:
@@ -55,13 +63,13 @@
         After=network.target
         User=prometheus
         Group=prometheus
-        
+
         [Service]
         Type=simple
         Restart=always
         ExecStart=/usr/local/bin/mysqld_exporter \
         --config.my-cnf /etc/.mysqld_exporter.cnf
-        
+
         [Install]
         WantedBy=multi-user.target
 
@@ -85,19 +93,20 @@
     cron:
       name: process_counter
       job: "/home/process_counter.sh"
- 
+
   - name: Edit nginx Conf
     blockinfile:
       path: /etc/nginx/conf.d/prometheus-ssl.conf
       create: true
       state: present
       insertafter: "localhost;"
-      marker: "#uebung 4 ansibel"
+      marker_begin: "#uebung 4 ansibel begin"
+      marker_end: "#uebung 4 ansibel end"
       block: |2
                 location /node-exporter {
                         proxy_pass              http://127.0.0.1:9100;
                 }
-  
+ 
                 location /process-exporter {
                         proxy_pass              http://127.0.0.1:9256;
                         auth_basic              "admin-only";
@@ -106,28 +115,28 @@
 
   - name: Daemon reload + ensure prometheus service is started and enabled
     systemd:
-      daemon_reload: True
+      daemon_reload: true
       name: prometheus
       state: restarted
-      enabled: True
+      enabled: true
 
   - name: Start and enable mysql_exporter
     systemd:
       name: mysql_exporter
       state: restarted
-      enabled: True
+      enabled: true
 
   - name: Start and enable nginx
     systemd:
       name: nginx
       state: restarted
-      enabled: True
+      enabled: true
 
   - name: Start and enable node_exporter
     systemd:
       name: node_exporter
       state: restarted
-      enabled: True
+      enabled: true
 
   - name: Start and enable process-exporter
     systemd:
