@@ -1,0 +1,95 @@
+---
+- hosts: localhost 
+  become: yes
+  tasks:
+  - name: update /etc/prometheus/prometheus.yml
+    blockinfile:
+      path: /etc/prometheus/prometheus.yml
+      create: true
+      state: present
+      insertafter: "^#          group: 'production'"
+      block: |2
+          - job_name: 'mysqld_exporter'
+            scrape_interval: 5s
+            static_configs:
+              - targets: ['127.0.0.1:9104']
+    
+          - job_name: 'blackbox_exporter'
+            metrics_path: /probe
+            params:
+              module: [http_2xx]  # Look for a HTTP 200 response.
+            static_configs:
+              - targets:
+                - https://www.ordix.de
+            relabel_configs:
+              - source_labels: [__address__]
+                target_label: __param_target
+              - source_labels: [__param_target]
+                target_label: instance
+              - target_label: __address__
+                replacement: prometheus1.ordix.de:9115  # The blackbox exporter's real hostname:port.
+    
+          - job_name: 'node_exporter'
+            scrape_interval: 5s
+            scheme: https
+            metrics_path: /node-exporter/metrics
+            tls_config:
+              insecure_skip_verify: true
+            static_configs:
+              - targets: ['prometheus1.ordix.de:9443']
+    
+          - job_name: 'process-exporter'
+            scrape_interval: 5s
+            scheme: https
+            metrics_path: /process-exporter/metrics
+            tls_config:
+              insecure_skip_verify: true
+            basic_auth:
+              username: ordix
+              password: ordix
+            static_configs:
+              - targets:
+                  - prometheus1.ordix.de:9443
+    
+            relabel_configs:
+              - source_labels: [__scheme__]
+                target_label: http_schema
+
+  - name: update /etc/systemd/system/prometheus.service
+    blockinfile:
+      path: /etc/systemd/system/prometheus.service
+      create: true
+      state: present
+      insertafter: "^ExecStart"
+      block: |2
+            --storage.tsdb.retention.time=1h \
+            --web.listen-address="127.0.0.1:9090" \
+            --web.external-url="/prometheus" \
+
+  - name: update /etc/nginx/conf.d/prometheus-ssl.conf
+    blockinfile:
+      path: /etc/nginx/conf.d/prometheus-ssl.conf
+      create: true
+      state: present
+      marker: "#uebung 5 ansible"
+      insertbefore: "^}"
+      block: |2
+                location /prometheus {
+                        proxy_pass              http://127.0.0.1:9090;
+                        auth_basic              "admin-only";
+                        auth_basic_user_file    /etc/nginx/conf.d/htpasswd.auth;
+                }
+  - name: Daemon reload + ensure prometheus service is started and enabled
+    systemd:
+      daemon_reload: True
+      name: prometheus
+      state: restarted
+      enabled: True 
+
+  - name: restart and enable nginx 
+    systemd:
+      name: nginx
+      state: restarted
+      enabled: True
+
+...
