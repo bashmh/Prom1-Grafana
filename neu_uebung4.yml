@@ -1,0 +1,137 @@
+---
+
+- hosts: localhost
+#  become: true
+  tasks:
+  - name: Change node_exporter.service
+    blockinfile:
+      path: /etc/systemd/system/node_exporter.service
+      create: true
+      state: present
+      insertafter: "^ExecStart"
+      block: |2 
+                --collector.systemd \
+                --no-collector.zfs \
+                --web.telemetry-path='/node-exporter/metrics' \
+                --web.listen-address=127.0.0.1:9100 \
+                --collector.textfile.directory='/var/spool/node_exporter' \
+
+  - name: Extract /root/mysqld_exporter-0.12.1.linux-amd64.tar.gz into
+    unarchive:
+      src: /root/mysqld_exporter-0.12.1.linux-amd64.tar.gz
+      dest: /root/
+      owner: prometheus
+      group: prometheus
+
+  - name: Copy mysqld_exporter into /usr/local/bin
+    copy:
+      src: /root/mysqld_exporter-0.12.1.linux-amd64/mysqld_exporter
+      dest: /usr/local/bin/mysqld_exporter
+      owner: prometheus
+      group: prometheus
+      mode: '0555'
+
+  - name: creste .mysql_exporter
+    blockinfile:
+      path: /etc/.mysqld_exporter.cnf
+      create: true
+      group: prometheus
+      owner: root
+      mode: 0640
+      state: present
+      block: |
+        [client]
+        user=ordix
+        password=ordix
+
+  - name: creste Systemd Unite  mysql_exporter.service
+    blockinfile:
+      path: /etc/systemd/system/mysql_exporter.service
+      create: true
+      state: present
+      block: |
+        [Unit]
+        Description=Prometheus MySQL Exporter
+        After=network.target
+        User=prometheus
+        Group=prometheus
+        
+        [Service]
+        Type=simple
+        Restart=always
+        ExecStart=/usr/local/bin/mysqld_exporter \
+        --config.my-cnf /etc/.mysqld_exporter.cnf
+        
+        [Install]
+        WantedBy=multi-user.target
+
+  - name: create dir /var/spool/node_exporter
+    file:
+      path: /var/spool/node_exporter
+      state: directory
+
+  - name: create a cronjob
+    blockinfile:
+      path: /home/process_counter.sh
+      create: true
+      state: present
+      mode: 0777
+      block: |
+        #!/bin/bash
+        process_counter=$(ps -ef | wc -l)
+        echo process_counter ${process_counter} > /var/spool/node_exporter/process_counter.prom
+
+  - name: start a cronjob
+    cron:
+      name: process_counter
+      job: "/home/process_counter.sh"
+ 
+  - name: Edit nginx Conf
+    blockinfile:
+      path: /etc/nginx/conf.d/prometheus-ssl.conf
+      create: true
+      state: present
+      insertafter: "localhost;"
+      marker: "#uebung 4 ansibel"
+      block: |2
+                location /node-exporter {
+                        proxy_pass              http://127.0.0.1:9100;
+                }
+  
+                location /process-exporter {
+                        proxy_pass              http://127.0.0.1:9256;
+                        auth_basic              "admin-only";
+                        auth_basic_user_file    /etc/nginx/conf.d/htpasswd.auth;
+                }
+
+  - name: Daemon reload + ensure prometheus service is started and enabled
+    systemd:
+      daemon_reload: True
+      name: prometheus
+      state: restarted
+      enabled: True
+
+  - name: Start and enable mysql_exporter
+    systemd:
+      name: mysql_exporter
+      state: restarted
+      enabled: True
+
+  - name: Start and enable nginx
+    systemd:
+      name: nginx
+      state: restarted
+      enabled: True
+
+  - name: Start and enable node_exporter
+    systemd:
+      name: node_exporter
+      state: restarted
+      enabled: True
+
+  - name: Start and enable process-exporter
+    systemd:
+      name: process-exporter
+      state: restarted
+
+...
